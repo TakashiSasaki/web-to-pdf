@@ -9,10 +9,6 @@ import hashlib
 
 A4_HEIGHT_INCH = 11.69  # A4の縦の長さ（インチ）
 
-def save_pdf_from_base64(pdf_base64, output_tmp_path):
-    with open(output_tmp_path, 'wb') as pdf_file:
-        pdf_file.write(base64.b64decode(pdf_base64))
-
 def scroll_to_bottom(driver):
     last_height = driver.execute_script("return document.body.scrollHeight")
     
@@ -30,8 +26,7 @@ def scroll_to_bottom(driver):
         
         last_height = new_height
 
-def render_html_to_long_pdf(driver, url, output_pdf_path, initial_wait=3):
-    output_tmp_path = None
+def get_pdf_base64_from_html(driver, url, initial_wait=3):
     try:
         # URLを開く
         driver.get(url)
@@ -53,9 +48,6 @@ def render_html_to_long_pdf(driver, url, output_pdf_path, initial_wait=3):
         # 縦の長さがA4の縦の長さより短い場合にはA4の縦の長さを使用
         total_height_inch = max(total_height / 96, A4_HEIGHT_INCH)
         
-        # 一時的なPDFファイルパスを設定
-        output_tmp_path = output_pdf_path + '.tmp'
-        
         # ページ全体をPDFとして保存
         result = driver.execute_cdp_cmd("Page.printToPDF", {
             "paperWidth": viewport_width / 96,  # 96 DPI でインチに変換
@@ -64,9 +56,17 @@ def render_html_to_long_pdf(driver, url, output_pdf_path, initial_wait=3):
             "scale": 1
         })
         
+        return result['data']
+    except Exception as e:
+        print(f"エラーが発生しました: {e}")
+        return None
+
+def save_base64_pdf_to_file(pdf_base64, output_pdf_path):
+    output_tmp_path = output_pdf_path + '.tmp'
+    try:
         # base64でエンコードされたPDFデータをデコードして一時ファイルに保存
-        pdf_base64 = result['data']
-        save_pdf_from_base64(pdf_base64, output_tmp_path)
+        with open(output_tmp_path, 'wb') as pdf_file:
+            pdf_file.write(base64.b64decode(pdf_base64))
         
         # 一時ファイルを最終的なPDFファイルにリネーム
         os.rename(output_tmp_path, output_pdf_path)
@@ -74,7 +74,7 @@ def render_html_to_long_pdf(driver, url, output_pdf_path, initial_wait=3):
         print(f"PDFが正常に生成されました: {output_pdf_path}")
     except Exception as e:
         print(f"エラーが発生しました: {e}")
-        if output_tmp_path and os.path.exists(output_tmp_path):
+        if os.path.exists(output_tmp_path):
             os.remove(output_tmp_path)
 
 def generate_pdf_filename(url):
@@ -96,7 +96,9 @@ def main():
         initial_wait = 3  # スクロールを開始する前の待機時間（秒）
         for url in urls:
             output_pdf_path = generate_pdf_filename(url)
-            render_html_to_long_pdf(driver, url, output_pdf_path, initial_wait)
+            pdf_base64 = get_pdf_base64_from_html(driver, url, initial_wait)
+            if pdf_base64:
+                save_base64_pdf_to_file(pdf_base64, output_pdf_path)
     finally:
         driver.quit()
 
