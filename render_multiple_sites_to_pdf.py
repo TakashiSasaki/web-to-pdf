@@ -9,24 +9,6 @@ import os
 import hashlib
 import argparse
 
-def add_url_to_page(driver, url):
-    print(f"Adding URL to page: {url}")
-    page_title = driver.title
-    script = f"""
-    let infoDiv = document.createElement('div');
-    infoDiv.style.position = 'fixed';
-    infoDiv.style.bottom = '0';
-    infoDiv.style.left = '0';
-    infoDiv.style.width = '100%';
-    infoDiv.style.textAlign = 'center';
-    infoDiv.style.zIndex = '10000';
-    infoDiv.style.fontSize = '12px';
-    infoDiv.innerHTML = 'Page Title: {page_title}<br>This PDF file is originally from: <a href="{url}" target="_blank">{url}</a>';
-    document.body.appendChild(infoDiv);
-    """
-    driver.execute_script(script)
-    print(f"URL and page title added to page: {url}")
-
 def save_base64_pdf_to_file(pdf_base64, output_pdf_path, force):
     output_tmp_path = output_pdf_path + '.tmp'
     
@@ -67,11 +49,6 @@ def main(urls, force, initial_wait=3):
         for url in urls:
             print(f"Processing URL: {url}")
             output_pdf_path = generate_pdf_filename(url)
-            driver.get(url)
-            print(f"Page loaded: {url}")
-            time.sleep(initial_wait)  # Wait for the page to fully load
-            add_url_to_page(driver, url)  # Add URL and title to the page
-            
             pdf_base64 = get_pdf_base64_from_html(driver, url, initial_wait)
             if pdf_base64:
                 save_base64_pdf_to_file(pdf_base64, output_pdf_path, force)

@@ -1,5 +1,6 @@
-# pdf_utils.py
+# Script name: pdf_utils.py
 
+from add_url_to_page import add_url_to_page
 import time
 
 A4_HEIGHT_INCH = 11.69  # A4の縦の長さ（インチ）
@@ -25,6 +26,8 @@ def get_pdf_base64_from_html(driver, url, initial_wait=3):
     try:
         # URLを開く
         driver.get(url)
+        print(f"Page loaded: {url}")
+        add_url_to_page(driver, url)
         
         # ページの完全な読み込みを待つ
         driver.execute_script("return document.readyState") == "complete"
