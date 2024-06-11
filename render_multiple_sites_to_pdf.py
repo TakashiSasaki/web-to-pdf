@@ -7,9 +7,21 @@ import base64
 import time
 import os
 import hashlib
+import argparse
 
-def save_base64_pdf_to_file(pdf_base64, output_pdf_path):
+def save_base64_pdf_to_file(pdf_base64, output_pdf_path, force):
     output_tmp_path = output_pdf_path + '.tmp'
+    
+    # ファイルが存在する場合の処理
+    if os.path.exists(output_pdf_path) or os.path.exists(output_tmp_path):
+        if force:
+            if os.path.exists(output_pdf_path):
+                os.remove(output_pdf_path)
+            if os.path.exists(output_tmp_path):
+                os.remove(output_tmp_path)
+        else:
+            raise FileExistsError(f"File {output_pdf_path} or {output_tmp_path} already exists.")
+
     try:
         # base64でエンコードされたPDFデータをデコードして一時ファイルに保存
         with open(output_tmp_path, 'wb') as pdf_file:
@@ -29,25 +41,22 @@ def generate_pdf_filename(url):
     sha1_hash = hashlib.sha1(url.encode()).hexdigest()
     return f"{sha1_hash}.pdf"
 
-def main():
-    urls = [
-        'https://www.yahoo.co.jp',
-        'https://www.example.com',
-        'https://www.example.net',
-        'https://www.example.org',        
-    ]
-    
+def main(urls, force, initial_wait=3):
     driver = setup_chromedriver()
     
     try:
-        initial_wait = 3  # スクロールを開始する前の待機時間（秒）
         for url in urls:
             output_pdf_path = generate_pdf_filename(url)
             pdf_base64 = get_pdf_base64_from_html(driver, url, initial_wait)
             if pdf_base64:
-                save_base64_pdf_to_file(pdf_base64, output_pdf_path)
+                save_base64_pdf_to_file(pdf_base64, output_pdf_path, force)
     finally:
         driver.quit()
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description='Convert multiple web pages to PDFs.')
+    parser.add_argument('urls', metavar='URL', type=str, nargs='+', help='URLs of the web pages to convert to PDF')
+    parser.add_argument('--force', action='store_true', help='Overwrite existing files if they exist')
+
+    args = parser.parse_args()
+    main(args.urls, args.force)
