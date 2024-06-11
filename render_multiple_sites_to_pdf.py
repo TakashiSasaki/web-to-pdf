@@ -2,7 +2,7 @@
 
 from selenium import webdriver
 from setup_chromedriver import setup_chromedriver
-from pdf_utils import get_pdf_base64_from_html
+from pdf_utils import get_pdf_base64_from_html, scroll_to_bottom
 import base64
 import time
 import os
@@ -59,32 +59,6 @@ def generate_pdf_filename(url):
     # URLのSHA1ハッシュを計算し、16進数のファイル名に変換
     sha1_hash = hashlib.sha1(url.encode()).hexdigest()
     return f"{sha1_hash}.pdf"
-
-def get_pdf_base64_from_html(driver, url, initial_wait=3):
-    try:
-        # スクロールを開始する前に待つ
-        print(f"Waiting for {initial_wait} seconds before starting to scroll...")
-        time.sleep(initial_wait)
-
-        # ページの全体の高さと幅を取得
-        total_height = driver.execute_script("return document.body.scrollHeight")
-        viewport_width = driver.execute_script("return document.documentElement.clientWidth")
-
-        # 縦の長さがA4の縦の長さより短い場合にはA4の縦の長さを使用
-        total_height_inch = max(total_height / 96, 11.69)
-        
-        # ページ全体をPDFとして保存
-        result = driver.execute_cdp_cmd("Page.printToPDF", {
-            "paperWidth": viewport_width / 96,  # 96 DPI でインチに変換
-            "paperHeight": total_height_inch,   # 96 DPI でインチに変換
-            "printBackground": True,
-            "scale": 1
-        })
-        
-        return result['data']
-    except Exception as e:
-        print(f"エラーが発生しました: {e}")
-        return None
 
 def main(urls, force, initial_wait=3):
     driver = setup_chromedriver()
