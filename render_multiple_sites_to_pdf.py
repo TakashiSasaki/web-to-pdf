@@ -30,7 +30,7 @@ def add_url_to_page(driver, url):
 def save_base64_pdf_to_file(pdf_base64, output_pdf_path, force):
     output_tmp_path = output_pdf_path + '.tmp'
     
-    # ファイルが存在する場合の処理
+    # Handle existing files
     if os.path.exists(output_pdf_path) or os.path.exists(output_tmp_path):
         if force:
             print(f"Removing existing files: {output_pdf_path}, {output_tmp_path}")
@@ -42,21 +42,21 @@ def save_base64_pdf_to_file(pdf_base64, output_pdf_path, force):
             raise FileExistsError(f"File {output_pdf_path} or {output_tmp_path} already exists.")
 
     try:
-        # base64でエンコードされたPDFデータをデコードして一時ファイルに保存
+        # Decode the base64 encoded PDF data and save it to a temporary file
         with open(output_tmp_path, 'wb') as pdf_file:
             pdf_file.write(base64.b64decode(pdf_base64))
         
-        # 一時ファイルを最終的なPDFファイルにリネーム
+        # Rename the temporary file to the final PDF file
         os.rename(output_tmp_path, output_pdf_path)
         
-        print(f"PDFが正常に生成されました: {output_pdf_path}")
+        print(f"PDF successfully generated: {output_pdf_path}")
     except Exception as e:
-        print(f"エラーが発生しました: {e}")
+        print(f"An error occurred: {e}")
         if os.path.exists(output_tmp_path):
             os.remove(output_tmp_path)
 
 def generate_pdf_filename(url):
-    # URLのSHA1ハッシュを計算し、16進数のファイル名に変換
+    # Compute the SHA1 hash of the URL and convert it to a hexadecimal filename
     sha1_hash = hashlib.sha1(url.encode()).hexdigest()
     return f"{sha1_hash}.pdf"
 
@@ -69,8 +69,8 @@ def main(urls, force, initial_wait=3):
             output_pdf_path = generate_pdf_filename(url)
             driver.get(url)
             print(f"Page loaded: {url}")
-            time.sleep(initial_wait)  # ページの読み込みを待機
-            add_url_to_page(driver, url)  # URLとタイトルをページに追加
+            time.sleep(initial_wait)  # Wait for the page to fully load
+            add_url_to_page(driver, url)  # Add URL and title to the page
             
             pdf_base64 = get_pdf_base64_from_html(driver, url, initial_wait)
             if pdf_base64:
