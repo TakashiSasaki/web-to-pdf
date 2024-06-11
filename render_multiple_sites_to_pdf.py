@@ -2,12 +2,30 @@
 
 from selenium import webdriver
 from setup_chromedriver import setup_chromedriver
-from pdf_utils import get_pdf_base64_from_html, scroll_to_bottom
+from pdf_utils import get_pdf_base64_from_html
 import base64
 import time
 import os
 import hashlib
 import argparse
+
+def add_url_to_page(driver, url):
+    print(f"Adding URL to page: {url}")
+    page_title = driver.title
+    script = f"""
+    let infoDiv = document.createElement('div');
+    infoDiv.style.position = 'fixed';
+    infoDiv.style.bottom = '0';
+    infoDiv.style.left = '0';
+    infoDiv.style.width = '100%';
+    infoDiv.style.textAlign = 'center';
+    infoDiv.style.zIndex = '10000';
+    infoDiv.style.fontSize = '12px';
+    infoDiv.innerHTML = 'Page Title: {page_title}<br>This PDF file is originally from: <a href="{url}" target="_blank">{url}</a>';
+    document.body.appendChild(infoDiv);
+    """
+    driver.execute_script(script)
+    print(f"URL and page title added to page: {url}")
 
 def save_base64_pdf_to_file(pdf_base64, output_pdf_path, force):
     output_tmp_path = output_pdf_path + '.tmp'
@@ -15,6 +33,7 @@ def save_base64_pdf_to_file(pdf_base64, output_pdf_path, force):
     # ファイルが存在する場合の処理
     if os.path.exists(output_pdf_path) or os.path.exists(output_tmp_path):
         if force:
+            print(f"Removing existing files: {output_pdf_path}, {output_tmp_path}")
             if os.path.exists(output_pdf_path):
                 os.remove(output_pdf_path)
             if os.path.exists(output_tmp_path):
@@ -41,17 +60,50 @@ def generate_pdf_filename(url):
     sha1_hash = hashlib.sha1(url.encode()).hexdigest()
     return f"{sha1_hash}.pdf"
 
+def get_pdf_base64_from_html(driver, url, initial_wait=3):
+    try:
+        # スクロールを開始する前に待つ
+        print(f"Waiting for {initial_wait} seconds before starting to scroll...")
+        time.sleep(initial_wait)
+
+        # ページの全体の高さと幅を取得
+        total_height = driver.execute_script("return document.body.scrollHeight")
+        viewport_width = driver.execute_script("return document.documentElement.clientWidth")
+
+        # 縦の長さがA4の縦の長さより短い場合にはA4の縦の長さを使用
+        total_height_inch = max(total_height / 96, 11.69)
+        
+        # ページ全体をPDFとして保存
+        result = driver.execute_cdp_cmd("Page.printToPDF", {
+            "paperWidth": viewport_width / 96,  # 96 DPI でインチに変換
+            "paperHeight": total_height_inch,   # 96 DPI でインチに変換
+            "printBackground": True,
+            "scale": 1
+        })
+        
+        return result['data']
+    except Exception as e:
+        print(f"エラーが発生しました: {e}")
+        return None
+
 def main(urls, force, initial_wait=3):
     driver = setup_chromedriver()
     
     try:
         for url in urls:
+            print(f"Processing URL: {url}")
             output_pdf_path = generate_pdf_filename(url)
+            driver.get(url)
+            print(f"Page loaded: {url}")
+            time.sleep(initial_wait)  # ページの読み込みを待機
+            add_url_to_page(driver, url)  # URLとタイトルをページに追加
+            
             pdf_base64 = get_pdf_base64_from_html(driver, url, initial_wait)
             if pdf_base64:
                 save_base64_pdf_to_file(pdf_base64, output_pdf_path, force)
     finally:
         driver.quit()
+        print("ChromeDriver session ended.")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Convert multiple web pages to PDFs.')
